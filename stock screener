@@ -1,0 +1,92 @@
+import datetime as dt
+import pandas as pd
+import yfinance as yf
+import ta
+import warnings
+warnings.filterwarnings('ignore')
+import timeit
+
+end = pd.to_datetime('today')
+start = end - pd.DateOffset(days=731)
+start = start.strftime('%Y-%m-%d')
+
+print(start)
+
+#Nasdaq
+stocks2 = pd.read_csv(r"C:\Users\User\Desktop\nasdaq_screener.csv")
+codes2= stocks2.Symbol.to_list()
+codes2
+
+ella = pd.DataFrame(columns = ['Symbol','Close','50MA','150MA','200MA','200MA_past','low52','high52'])
+ella
+
+for code in codes2:
+    
+    try:
+
+        df =yf.download(code,start,end)
+        df['50MA']=ta.trend.sma_indicator(df.Close,50)
+        df['150MA']=ta.trend.sma_indicator(df.Close,150)
+        df['200MA']=ta.trend.sma_indicator(df.Close,200)
+        df['200MA_past']=df['200MA'].shift(20)
+        df['low52']=df.Low.rolling(252).min()
+        df['high52']=df.High.rolling(252).max()
+        df['Symbol']=code
+        df['weekly_volume'] = df['Volume'].resample('W').sum()
+        avg_weekly_volume = df['weekly_volume'].mean()
+        current_weekly_volume = df['weekly_volume'][-1]
+
+        df=df.drop(columns=['Open','High','Low','Adj Close'], axis=1)
+
+        df=df[['Symbol','Close','50MA','150MA','200MA','200MA_past','low52','high52','Volume']]
+    
+        if df.Close[-1]>df['150MA'][-1] and df.Close[-1] > df['200MA'][-1] and df.Close[-1] > df['50MA'][-1]:
+            c1=True
+        else:
+            c1=False
+
+        if df['150MA'][-1]  > df['200MA'][-1]:
+            c2=True
+        else:
+            c2=False
+
+        if df['200MA'][-1] > df['200MA_past'][-1]:
+            c3=True
+        else:
+            c3=False
+
+        if df['50MA'][-1] > df['150MA'][-1] and df['50MA'][-1]>df['200MA'][-1]:
+            c4=True
+        else:
+            c4=False
+
+        if df.Close[-1] > df.low52[-1]*2:
+            c5=True
+        else:
+            c5=False
+
+        if df.Close[-1] > 0.8*df.high52[-1]:
+            c6=True
+        else:
+            c6=False
+    
+        if current_weekly_volume >= 1.5 * avg_weekly_volume:
+            c7 = True
+        else:
+            c7 = False
+    
+        if c1 and c2 and c3 and c4 and c5 and c6 and c7:
+            ella=ella._append(df.iloc[-1])
+            print(f'{code} Buy')
+        else:
+            print(f'{code} No')
+
+        
+    except Exception:
+        print(f'Error on {code}. No data')
+
+ella = round(ella,2)
+ella
+
+
+   
